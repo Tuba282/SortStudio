@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sort Studio</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2322c55e'/%3E%3Cpath d='M8 25V16M14 25V8M20 25V13M26 25V19' stroke='%23000' stroke-width='3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;overflow:hidden;background:#000;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+body{background:radial-gradient(ellipse at 50% -10%,#052e1699,#000 60%) #000}
+.cell{--bg:#0a0a0a;--bd:#16a34a;--fg:#fff;width:3rem;height:3rem;display:grid;place-items:center;border-radius:.75rem;border:2px solid var(--bd);background:var(--bg);color:var(--fg);font-weight:700;font-size:1.1rem;transition:all .3s}
+@media(min-width:640px){.cell{width:4rem;height:4rem;font-size:1.4rem}}
+.cell.sm{width:2.3rem;height:2.3rem;font-size:.9rem;border-radius:.5rem}
+.cmp{--bg:#052e16;--bd:#22c55e}.swap{--bg:#22c55e;--bd:#bbf7d0;--fg:#000}.done{--bg:#fff;--bd:#fff;--fg:#000}.piv{--bg:#000;--bd:#fff}.key{--bg:#166534;--bd:#bbf7d0}
+.cell.swap{animation:pop .4s}
+@keyframes pop{50%{transform:scale(1.2)}}
+.cell.bub{border-radius:50%;border-color:#86efac;color:#fff;background:radial-gradient(circle at 30% 28%,#ffffffcc,#22c55e66 40%,#052e16);box-shadow:0 0 18px #22c55e88,inset -6px -8px 14px #0009,inset 6px 6px 12px #fff3;animation:fl 3s ease-in-out infinite}
+@keyframes fl{50%{transform:translateY(-7px)}}
+.nd{fill:var(--bg,#0a0a0a);stroke:var(--bd,#16a34a);stroke-width:2.5;transition:all .3s}
+.tx{fill:var(--fg,#fff);font-weight:700;font-size:18px;text-anchor:middle;dominant-baseline:central}
+.btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid #22c55e88;border-radius:.6rem;padding:.4rem .8rem;font-size:.85rem;color:#fff;transition:.2s}
+.btn:hover{background:#22c55e26}.btn-p{background:#22c55e;color:#000;font-weight:600}.btn-p:hover{background:#4ade80}
+.tab{border:1px solid #166534;border-radius:999px;padding:.25rem .7rem;font-size:.78rem;color:#d4d4d8;transition:.2s}
+.tab:hover{border-color:#22c55e}.tab.on{background:#22c55e;color:#000;font-weight:700;border-color:#22c55e;box-shadow:0 0 16px #22c55e66}
+.pop{animation:pi .25s ease-out}@keyframes pi{from{opacity:0;transform:scale(.94)}}
+input[type=range]{accent-color:#22c55e}
+</style>
+</head>
+<body>
+<div id="app" class="h-full flex flex-col gap-2 px-3 py-2 sm:px-8 sm:py-3 overflow-hidden text-white">
+  <header class="flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="grid h-8 w-8 place-items-center rounded-lg bg-green-500 text-black"><svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 20V12M10 20V6M16 20V10M22 20V15"/></svg></span>
+      <h1 class="text-lg sm:text-xl font-bold tracking-tight">Sort<span class="text-green-400"> Studio</span></h1>
+    </div>
+    <button id="help" class="btn" aria-label="Help"></button>
+  </header>
+
+  <section class="flex items-center justify-center gap-2">
+    <input id="inp" inputmode="numeric" maxlength="3" placeholder="Type a number (0-999)" class="w-full max-w-xs rounded-xl border border-green-500/60 bg-black px-4 py-2 text-center text-lg outline-none focus:border-green-300 focus:shadow-[0_0_18px_#22c55e55]">
+    <button id="add" class="btn btn-p py-2.5"></button>
+    <span id="cnt" class="w-10 text-sm text-green-400">0/10</span>
+  </section>
+
+  <section id="boxes" class="flex min-h-[2.75rem] flex-wrap items-center justify-center gap-2"></section>
+
+  <nav id="tabs" class="flex flex-wrap justify-center gap-1.5"></nav>
+
+  <main class="relative min-h-0 flex-1 rounded-2xl border border-green-500/30 bg-black/50 p-3">
+    <div id="viz" class="flex h-full flex-col items-center justify-center gap-3 text-center"></div>
+    <div id="pie" class="relative hidden h-full"><canvas id="cv"></canvas></div>
+  </main>
+
+  <footer id="ctl" class="flex flex-wrap items-center justify-center gap-2">
+    <button id="rs" class="btn" title="Reset"></button>
+    <button id="pv" class="btn" title="Previous step"></button>
+    <button id="pp" class="btn btn-p" title="Play / Pause"></button>
+    <button id="nx" class="btn" title="Next step"></button>
+    <label class="flex items-center gap-2 text-xs text-zinc-400">Speed <input id="sp" type="range" min="1" max="5" value="3" class="w-20"></label>
+    <span id="hx" class="hidden gap-2"><button id="hi" class="btn"></button><button id="he" class="btn"></button></span>
+    <span id="pg" class="w-16 text-right text-xs text-zinc-500"></span>
+  </footer>
+</div>
+<div id="modal"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const ic=d=>`<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const P={edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',trash:'<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>',play:'<path d="M6 4l14 8-14 8z"/>',pause:'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>',next:'<path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/>',prev:'<path d="M19 4L9 12l10 8z"/><path d="M5 5v14"/>',reset:'<path d="M3 12a9 9 0 109-9 9 9 0 00-6.7 3L3 8"/><path d="M3 3v5h5"/>',info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',plus:'<path d="M12 5v14M5 12h14"/>',down:'<path d="M12 5v14M6 13l6 6 6-6"/>'};
+const ALGOS=[['minheap','Min Heap'],['maxheap','Max Heap'],['selection','Selection'],['insertion','Insertion'],['bubble','Bubble'],['merge','Merge'],['quick','Quick'],['pie','Pie Chart']];
+let nums=[],algo='bubble',steps=[],idx=0,timer=null,heap=[],chart=null;
+
+/* ---------- reusable modal ---------- */
+function modal(title,body,btns){
+  const m=$('#modal');
+  m.innerHTML=`<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"><div class="pop w-full max-w-sm rounded-2xl border border-green-500/60 bg-zinc-950 p-5 shadow-[0_0_40px_#22c55e33]"><h3 class="text-lg font-semibold text-green-400">${title}</h3><div class="mt-2 text-sm text-zinc-300">${body}</div><div id="mb" class="mt-5 flex justify-end gap-2"></div></div></div>`;
+  let primary;
+  btns.forEach(b=>{const e=document.createElement('button');e.className='btn'+(b.p?' btn-p':'');e.textContent=b.t;e.onclick=()=>{if(!b.fn||b.fn()!==false)closeModal()};$('#mb').append(e);if(b.p)primary=e});
+  const i=m.querySelector('input');
+  if(i){i.focus();i.select();i.onkeydown=e=>{if(e.key==='Enter')primary.click()}}
+}
+const closeModal=()=>{$('#modal').innerHTML=''};
+const info=(t,b)=>modal(t,b,[{t:'Got it',p:1}]);
+
+/* ---------- number input ---------- */
+const inp=$('#inp');
+function add(){
+  const v=inp.value.trim();
+  if(v==='')return info('Empty input','Please type a number first.');
+  if(nums.length>=10)return info('Limit reached','You can add a maximum of 10 numbers. Delete one to add another.');
+  nums.push(+v);inp.value='';changed();inp.focus();
+}
+inp.addEventListener('input',()=>{const c=inp.value.replace(/\D/g,'');if(c!==inp.value){inp.value=c;info('Numbers only','Only digits 0-9 are allowed.')}});
+inp.addEventListener('keydown',e=>{if(e.key==='Enter')add()});
+$('#add').onclick=add;
+
+function editNum(i){
+  modal('Edit number',`<input id="ei" inputmode="numeric" maxlength="3" value="${nums[i]}" class="w-full rounded-lg border border-green-500/60 bg-black px-3 py-2 text-center text-lg outline-none"><p id="er" class="mt-2 h-4 text-xs text-white"></p>`,
+   [{t:'Cancel'},{t:'Save',p:1,fn:()=>{const v=$('#ei').value.trim();if(!/^\d{1,3}$/.test(v)){$('#er').textContent='Enter a number between 0 and 999.';return false}nums[i]=+v;changed()}}]);
+}
+function delNum(i){modal('Delete number',`Remove <b class="text-white">${nums[i]}</b> from the list?`,[{t:'Cancel'},{t:'Delete',p:1,fn:()=>{nums.splice(i,1);changed()}}])}
+
+function renderBoxes(){
+  $('#boxes').innerHTML=nums.map((n,i)=>`<div class="pop flex items-center gap-1 rounded-xl border border-green-500/50 bg-zinc-950 py-1 pl-3 pr-1"><span class="min-w-[1.6rem] text-center font-bold">${n}</span><button data-e="${i}" class="rounded-md p-1.5 text-green-400 hover:bg-green-500/20" aria-label="Edit">${ic(P.edit)}</button><button data-d="${i}" class="rounded-md p-1.5 text-white hover:bg-white/15" aria-label="Delete">${ic(P.trash)}</button></div>`).join('');
+  $('#cnt').textContent=nums.length+'/10';
+}
+$('#boxes').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.e!==undefined)editNum(+b.dataset.e);else delNum(+b.dataset.d)};
+
+/* ---------- step generators ---------- */
+const D=(l,r,c='done')=>{const o={};for(let i=l;i<r;i++)o[i]=c;return o};
+const ALG={
+bubble(a){a=[...a];const f=[],n=a.length,s=(m,msg,tag)=>f.push({a:[...a],m,msg,tag});
+  for(let p=0;p<n-1;p++){let sw=0,tag='Pass '+(p+1);
+    for(let j=0;j<n-1-p;j++){const d=D(n-p,n);
+      s({...d,[j]:'cmp',[j+1]:'cmp'},`Compare ${a[j]} and ${a[j+1]}`,tag);
+      if(a[j]>a[j+1]){[a[j],a[j+1]]=[a[j+1],a[j]];sw=1;s({...d,[j]:'swap',[j+1]:'swap'},`Swap: ${a[j+1]} is larger, so it bubbles right`,tag)}}
+    if(!sw)break}
+  f.push({a:[...a],m:D(0,n),bub:1,msg:'All passes complete. The sorted numbers float up as bubbles.',tag:'Done'});return f},
+selection(a){a=[...a];const f=[],n=a.length,s=(m,msg,tag)=>f.push({a:[...a],m,msg,tag});
+  for(let i=0;i<n-1;i++){let mi=i,tag='Round '+(i+1);
+    for(let j=i+1;j<n;j++){s({...D(0,i),[mi]:'key',[j]:'cmp'},`Is ${a[j]} smaller than current minimum ${a[mi]}?`,tag);if(a[j]<a[mi])mi=j}
+    s({...D(0,i),[mi]:'key'},`Minimum of the unsorted part is ${a[mi]}`,tag);
+    if(mi!==i){[a[i],a[mi]]=[a[mi],a[i]];s({...D(0,i),[i]:'swap',[mi]:'swap'},`Swap ${a[i]} into position ${i}`,tag)}}
+  f.push({a:[...a],m:D(0,n),msg:'Array is sorted.',tag:'Done'});return f},
+insertion(a){a=[...a];const f=[],n=a.length,s=(m,msg,tag)=>f.push({a:[...a],m,msg,tag});
+  for(let i=1;i<n;i++){let j=i,tag='Insert #'+i;s({...D(0,i),[i]:'key'},`Take ${a[i]} and insert it into the sorted left part`,tag);
+    while(j>0){const d=D(0,i+1);s({...d,[j]:'key',[j-1]:'cmp'},`Compare ${a[j]} with ${a[j-1]}`,tag);
+      if(a[j-1]>a[j]){[a[j-1],a[j]]=[a[j],a[j-1]];s({...d,[j-1]:'swap',[j]:'swap'},'Shift larger element right',tag);j--}
+      else{s({...d,[j]:'key'},`${a[j]} is in place`,tag);break}}}
+  f.push({a:[...a],m:D(0,n),msg:'Array is sorted.',tag:'Done'});return f},
+merge(a){a=[...a];const n=a.length,f=[];let segs=[[0,n-1]];
+  const s=(msg,hg,mk,tag)=>f.push({a:[...a],g:segs.map(([l,r])=>a.slice(l,r+1)),hg,mk,msg,tag});
+  s('Start with the whole array',-1,'cmp','Divide');
+  const ms=(l,r)=>{if(l>=r)return;const m=(l+r)>>1,k=segs.findIndex(x=>x[0]===l&&x[1]===r);
+    segs.splice(k,1,[l,m],[m+1,r]);s(`Divide [${a.slice(l,r+1)}] into left and right halves`,k,'cmp','Divide');
+    ms(l,m);ms(m+1,r);
+    const L=a.slice(l,m+1),R=a.slice(m+1,r+1),k2=segs.findIndex(x=>x[0]===l);
+    s(`Merge sorted [${L}] and [${R}]`,k2,'key','Merge');
+    a.splice(l,r-l+1,...a.slice(l,r+1).sort((x,y)=>x-y));
+    segs.splice(k2,2,[l,r]);s(`Merged result: [${a.slice(l,r+1)}]`,k2,'swap','Merge')};
+  ms(0,n-1);s('Fully merged and sorted.',0,'done','Done');return f},
+quick(a){a=[...a];const f=[],dn=new Set(),n=a.length;
+  const s=(m,msg,lab,tag)=>{const d={};dn.forEach(i=>d[i]='done');f.push({a:[...a],m:{...d,...m},msg,lab,tag})};
+  const lb=(l,r)=>l===r?{[l]:'L/R'}:{[l]:'L',[r]:'R'};
+  const qs=(lo,hi)=>{if(lo>hi)return;if(lo===hi){dn.add(lo);s({},`${a[lo]} is alone, so it is sorted`,{},'Base case');return}
+    const p=a[lo],tag=`Partition [${lo}..${hi}]`;let l=lo+1,r=hi;
+    s({[lo]:'piv'},`Pivot = ${p}. Left starts at ${l}, Right at ${r}`,lb(l,r),tag);
+    while(l<=r){
+      while(l<=r&&a[l]<=p){s({[lo]:'piv',[l]:'cmp'},`${a[l]} <= pivot: move Left right`,lb(l,Math.min(r,hi)),tag);l++}
+      while(l<=r&&a[r]>p){s({[lo]:'piv',[r]:'cmp'},`${a[r]} > pivot: move Right left`,lb(Math.min(l,hi),r),tag);r--}
+      if(l<r){[a[l],a[r]]=[a[r],a[l]];s({[lo]:'piv',[l]:'swap',[r]:'swap'},'Left stopped at a big value, Right at a small one: swap',lb(l,r),tag);l++;r--}}
+    [a[lo],a[r]]=[a[r],a[lo]];dn.add(r);s({[r]:'piv'},`Pointers crossed: place pivot ${p} at index ${r}. Smaller values on its left, larger on its right`,{},tag);
+    qs(lo,r-1);qs(r+1,hi)};
+  s({},'Initial array',{},'Start');qs(0,n-1);
+  for(let i=0;i<n;i++)dn.add(i);s({},'Array is sorted.',{},'Done');return f}
+};
+
+/* ---------- heap ---------- */
+function heapFrames(op,val){
+  const mn=algo==='minheap',up=(x,y)=>mn?x<y:x>y,f=[],w=mn?'smaller':'larger';
+  const s=(m,msg,tag)=>f.push({a:[...heap],m,msg,tag,heap:1});
+  const swim=i=>{for(;i>0;){const p=(i-1)>>1;s({[i]:'cmp',[p]:'cmp'},`Compare ${heap[i]} with parent ${heap[p]}`,'Swim up');
+    if(up(heap[i],heap[p])){[heap[i],heap[p]]=[heap[p],heap[i]];s({[i]:'swap',[p]:'swap'},'Child belongs above its parent: swap','Swim up');i=p}
+    else{s({[i]:'done'},'Parent is in order. Stop.','Swim up');return}}
+    s({0:'done'},'Reached the root','Swim up')};
+  const sink=(i,n)=>{for(;;){const l=2*i+1,r=l+1;let b=i;if(l<n&&up(heap[l],heap[b]))b=l;if(r<n&&up(heap[r],heap[b]))b=r;
+    const m={[i]:'cmp'};if(l<n)m[l]='cmp';if(r<n)m[r]='cmp';
+    if(b===i){s({...m,[i]:'done'},`${heap[i]} is ${w} than its children: heap order holds`,'Sink down');return}
+    s(m,`Compare ${heap[i]} with its children: ${heap[b]} must go up`,'Sink down');
+    [heap[i],heap[b]]=[heap[b],heap[i]];s({[i]:'swap',[b]:'swap'},`Swap parent with the ${w} child`,'Sink down');i=b}};
+  if(op==='build'){heap=[];s({},'Empty heap. Press Play to insert the numbers one by one.','Build');
+    nums.forEach(v=>{heap.push(v);s({[heap.length-1]:'key'},`Insert ${v} at the next free leaf (complete tree)`,'Insert');swim(heap.length-1)})}
+  else if(op==='ins'){s({},'Current heap','Insert');heap.push(val);s({[heap.length-1]:'key'},`Insert ${val} at the next free leaf`,'Insert');swim(heap.length-1)}
+  else{s({},'Current heap','Extract');const n=heap.length,top=heap[0];[heap[0],heap[n-1]]=[heap[n-1],heap[0]];
+    s({0:'swap',[n-1]:'swap'},`Swap root ${top} with the last leaf`,'Extract');heap.pop();
+    s(heap.length?{0:'key'}:{},`Remove ${top} (${mn?'minimum':'maximum'}). Now sink the new root.`,'Extract');
+    if(heap.length)sink(0,heap.length)}
+  return f}
+const isHeap=()=>algo==='minheap'||algo==='maxheap';
+
+/* ---------- rendering ---------- */
+const row=f=>`<div class="flex flex-wrap justify-center gap-2 sm:gap-3">${f.a.map((x,i)=>`<div class="flex flex-col items-center gap-1"><div class="cell ${f.m[i]||''} ${f.bub?'bub':''}">${x}</div><span class="h-4 text-xs font-bold text-green-400">${(f.lab&&f.lab[i])||''}</span></div>`).join('')}</div>`;
+const groups=f=>`<div class="flex flex-wrap justify-center gap-2">${f.g.map((g,k)=>`<div class="pop flex gap-1 rounded-xl border p-1.5 ${k===f.hg?'border-green-400 bg-green-500/10':'border-zinc-700'}">${g.map(x=>`<div class="cell sm ${k===f.hg?f.mk:''}">${x}</div>`).join('')}</div>`).join('')}</div>`;
+function tree(f){const a=f.a,n=a.length;if(!n)return'<div class="flex-1"></div>';
+  const L=Math.floor(Math.log2(n))+1,W=700,H=L*76+20,pos=i=>{const l=Math.floor(Math.log2(i+1)),k=i-(2**l-1);return[(k+.5)/2**l*W,l*76+34]};
+  let e='',v='';for(let i=0;i<n;i++){const[x,y]=pos(i);if(i){const[px,py]=pos((i-1)>>1);e+=`<line x1="${px}" y1="${py}" x2="${x}" y2="${y}" stroke="#16a34a" stroke-width="2"/>`}
+    v+=`<g class="${f.m[i]||''}"><circle class="nd" cx="${x}" cy="${y}" r="25"/><text class="tx" x="${x}" y="${y}">${a[i]}</text></g>`}
+  return`<svg viewBox="0 0 ${W} ${H}" class="min-h-0 w-full max-w-[700px] flex-1">${e}${v}</svg>`}
+
+function render(){
+  const v=$('#viz'),f=steps[idx];
+  if(!f){v.innerHTML=`<p class="text-zinc-400">${nums.length?'Select an algorithm':'Add some numbers above to begin'}</p>`;$('#pg').textContent='';return}
+  v.innerHTML=(f.tag?`<span class="rounded-full border border-green-500/60 px-3 py-0.5 text-xs font-semibold text-green-400">${f.tag}</span>`:'')+
+    (f.heap?tree(f)+(f.a.length?row({...f,lab:null}).replace(/cell /g,'cell sm '):''):f.g?groups(f):row(f))+
+    `<p class="max-w-xl text-sm text-zinc-200">${f.msg}</p>`;
+  $('#pg').textContent=(idx+1)+' / '+steps.length;
+}
+function setPP(){$('#pp').innerHTML=ic(timer?P.pause:P.play)}
+function stop(){clearInterval(timer);timer=null;setPP()}
+function play(){if(timer)return stop();if(!steps.length)return;if(idx>=steps.length-1)idx=0;go()}
+function go(){clearInterval(timer);timer=setInterval(()=>{if(idx<steps.length-1){idx++;render()}else stop()},1700/ +$('#sp').value);setPP();render()}
+$('#sp').oninput=()=>{if(timer)go()};
+$('#pp').onclick=play;
+$('#nx').onclick=()=>{stop();if(idx<steps.length-1){idx++;render()}};
+$('#pv').onclick=()=>{stop();if(idx>0){idx--;render()}};
+$('#rs').onclick=()=>select(algo);
+
+function showPie(){
+  const on=algo==='pie'&&nums.length;
+  $('#pie').classList.toggle('hidden',!on);$('#viz').classList.toggle('hidden',!!on);
+  $('#ctl').classList.toggle('hidden',algo==='pie'&&!!nums.length);
+  if(chart){chart.destroy();chart=null}
+  if(!on)return;
+  const sv=[...nums].sort((a,b)=>a-b),sum=sv.reduce((a,b)=>a+b,0),pal=['#22c55e','#ffffff','#15803d','#d4d4d8','#4ade80','#a1a1aa','#166534','#f4f4f5','#86efac','#52525b'];
+  chart=new Chart($('#cv'),{type:'pie',data:{labels:sv.map(n=>'Value '+n),datasets:[{data:sv,backgroundColor:pal,borderColor:'#000',borderWidth:3,hoverOffset:14}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#fff',boxWidth:12}},tooltip:{callbacks:{label:c=>` ${c.raw} (${sum?(c.raw/sum*100).toFixed(1):0}%)`}}}}});
+}
+function select(a){
+  algo=a;stop();idx=0;
+  $('#tabs').innerHTML=ALGOS.map(([k,t])=>`<button data-a="${k}" class="tab ${k===a?'on':''}">${t}</button>`).join('');
+  $('#hx').classList.toggle('hidden',!isHeap());$('#hx').classList.toggle('inline-flex',isHeap());
+  heap=[];
+  if(!nums.length)steps=[];
+  else if(isHeap())steps=heapFrames('build');
+  else if(a==='pie')steps=[];
+  else steps=[{a:[...nums],m:{},msg:'Initial array. Press Play or Next to start.',tag:'Start',g:null},...ALG[a](nums)];
+  showPie();render();
+}
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)select(b.dataset.a)};
+function changed(){renderBoxes();select(algo)}
+
+/* heap operations */
+$('#hi').onclick=()=>{
+  if(!steps.length)return info('No heap yet','Add numbers first to build a heap.');
+  if(heap.length>=10)return info('Limit reached','The heap can hold a maximum of 10 numbers.');
+  modal('Insert into heap','<input id="hv" inputmode="numeric" maxlength="3" placeholder="0-999" class="w-full rounded-lg border border-green-500/60 bg-black px-3 py-2 text-center text-lg outline-none"><p id="er" class="mt-2 h-4 text-xs"></p>',
+   [{t:'Cancel'},{t:'Insert',p:1,fn:()=>{const v=$('#hv').value.trim();if(!/^\d{1,3}$/.test(v)){$('#er').textContent='Enter a number between 0 and 999.';return false}
+     stop();steps=heapFrames('ins',+v);idx=0;go()}}]);
+};
+$('#he').onclick=()=>{
+  if(!heap.length)return info('Heap is empty','There is nothing to extract.');
+  stop();steps=heapFrames('ext');idx=0;go()};
+
+/* icons + help */
+$('#help').innerHTML=ic(P.info)+'<span class="hidden sm:inline">Help</span>';
+$('#add').innerHTML=ic(P.plus)+'Add';
+$('#rs').innerHTML=ic(P.reset);$('#pv').innerHTML=ic(P.prev);$('#nx').innerHTML=ic(P.next);
+$('#hi').innerHTML=ic(P.plus)+'Insert';$('#he').innerHTML=ic(P.down)+'Extract root';
+$('#help').onclick=()=>info('How it works',`Add up to 10 numbers, pick an algorithm and press Play.<ul class="mt-2 space-y-1"><li><b class="text-green-400">Green outline</b>: elements being compared</li><li><b class="text-green-400">Solid green</b>: swap in progress</li><li><b class="text-white">White</b>: sorted or in final place</li><li><b class="text-white">Black with white border</b>: pivot</li></ul>In heaps you can also insert a new value or extract the root.`);
+setPP();select('bubble');
+</script>
+</body>
+</html>
